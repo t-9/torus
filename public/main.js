@@ -62,6 +62,13 @@ controls.maxDistance = 8
 controls.enablePan = true
 controls.target.set(0, 0, 0)
 
+const tmpVec3 = new THREE.Vector3()
+const rightVec = new THREE.Vector3()
+const upVec = new THREE.Vector3()
+const forwardVec = new THREE.Vector3()
+const desiredNdcDesktop = new THREE.Vector2(0.28, 0.18)
+const desiredNdcMobile = new THREE.Vector2(0.5, 0.22)
+
 function createLabel(lines) {
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')
@@ -102,15 +109,15 @@ function createLabel(lines) {
 
 // リサイズ対応
 function resize() {
+  torusGroup.position.set(0, 0, 0)
+  controls.target.set(0, 0, 0)
+
   const w = container.clientWidth || window.innerWidth || 1
   const h = container.clientHeight || window.innerHeight || 1
   camera.aspect = w / h
   camera.updateProjectionMatrix()
 
   const isMobile = w < 768
-  const horizontalShift = -(isMobile ? objectRadius * 2.4 : objectRadius * 1.6)
-  torusGroup.position.set(horizontalShift, 0, 0)
-
   const fitMargin = isMobile ? 3.2 : 2.4
   const vFov = THREE.MathUtils.degToRad(camera.fov)
   const halfHeightTan = Math.tan(vFov / 2)
@@ -119,15 +126,39 @@ function resize() {
   const distHorizontal = (objectRadius * fitMargin) / Math.max(halfWidthTan, 0.0001)
   const fitDistance = Math.max(distVertical, distHorizontal)
 
-  const focusPoint = new THREE.Vector3(0, 0, 0)
-  const cameraDirection = new THREE.Vector3(0, 0.45, 1).normalize()
-  camera.position.copy(cameraDirection.multiplyScalar(fitDistance).add(focusPoint))
-  camera.lookAt(focusPoint)
+  const desiredNdc = isMobile ? desiredNdcMobile : desiredNdcDesktop
+
+  const cameraDirection = new THREE.Vector3(0, 0.4, 1).normalize()
+  const horizontalScale = fitDistance * Math.tan(vFov / 2) * camera.aspect
+  const verticalScale = fitDistance * Math.tan(vFov / 2)
+
+  torusGroup.updateMatrixWorld()
+  for (let i = 0; i < 2; i += 1) {
+    camera.position.copy(cameraDirection.clone().multiplyScalar(fitDistance).add(controls.target))
+    camera.lookAt(controls.target)
+    camera.updateMatrixWorld()
+
+    camera.matrixWorld.extractBasis(rightVec, upVec, forwardVec)
+    const worldCenter = torusGroup.getWorldPosition(tmpVec3)
+    const projected = worldCenter.clone().project(camera)
+    const ndcDelta = desiredNdc.clone().sub(projected)
+
+    const worldOffset = new THREE.Vector3()
+    worldOffset.addScaledVector(rightVec, THREE.MathUtils.clamp(ndcDelta.x, -0.9, 0.9) * horizontalScale * 0.9)
+    worldOffset.addScaledVector(upVec, THREE.MathUtils.clamp(ndcDelta.y, -0.9, 0.9) * verticalScale * 0.9)
+
+    torusGroup.position.add(worldOffset)
+    controls.target.add(worldOffset)
+    torusGroup.updateMatrixWorld()
+  }
+
+  controls.target.copy(torusGroup.position)
+  camera.position.copy(cameraDirection.clone().multiplyScalar(fitDistance).add(controls.target))
+  camera.lookAt(controls.target)
   camera.updateProjectionMatrix()
 
   controls.minDistance = fitDistance * 0.6
   controls.maxDistance = fitDistance * 3
-  controls.target.copy(focusPoint)
 
   renderer.setSize(w, h, false)
   controls.update()
