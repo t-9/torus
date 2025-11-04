@@ -17,7 +17,7 @@ dir.position.set(3, 4, 5)
 scene.add(dir)
 
 // トーラス（ドーナツ）
-const params = { radius: 1.2, tube: 0.45, radialSegments: 128, tubularSegments: 256 }
+const params = { radius: 0.48, tube: 0.15, radialSegments: 96, tubularSegments: 168 }
 const geometry = new THREE.TorusGeometry(params.radius, params.tube, params.radialSegments, params.tubularSegments)
 const material = new THREE.MeshStandardMaterial({
   color: 0x4fb6ff,
@@ -29,6 +29,17 @@ const torus = new THREE.Mesh(geometry, material)
 scene.add(torus)
 geometry.computeBoundingSphere()
 const objectRadius = geometry.boundingSphere ? geometry.boundingSphere.radius : params.radius + params.tube
+
+const infoLabel = createLabel(['穴あきドーナツトーラス'])
+infoLabel.position.set(0, objectRadius + 0.2, 0)
+infoLabel.renderOrder = 1
+const desiredLabelHeight = objectRadius * 0.4
+const currentLabelHeight = infoLabel.scale.y
+if (currentLabelHeight > 0) {
+  const adjust = desiredLabelHeight / currentLabelHeight
+  infoLabel.scale.multiplyScalar(adjust)
+}
+scene.add(infoLabel)
 
 // カメラ
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100)
@@ -49,6 +60,44 @@ controls.minDistance = 1.5
 controls.maxDistance = 8
 controls.enablePan = true
 
+function createLabel(lines) {
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  const fontSize = 24
+  const lineHeight = fontSize * 1.25
+  const paddingX = 18
+  const paddingY = 14
+
+  context.font = `${fontSize}px "Noto Sans JP", "Segoe UI", sans-serif`
+  const metrics = lines.map((line) => context.measureText(line))
+  const maxWidth = Math.max(...metrics.map((m) => m.width))
+
+  canvas.width = Math.ceil(maxWidth + paddingX * 2)
+  canvas.height = Math.ceil(lineHeight * lines.length + paddingY * 2)
+
+  context.font = `${fontSize}px "Noto Sans JP", "Segoe UI", sans-serif`
+  context.textBaseline = 'top'
+  context.textAlign = 'left'
+  context.fillStyle = 'rgba(5, 11, 23, 0.78)'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = '#e7f1ff'
+  lines.forEach((line, index) => {
+    context.fillText(line, paddingX, paddingY + index * lineHeight)
+  })
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.anisotropy = 4
+  texture.needsUpdate = true
+
+  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false })
+  const sprite = new THREE.Sprite(material)
+  const scaleFactor = 0.008
+  sprite.scale.set(canvas.width * scaleFactor, canvas.height * scaleFactor, 1)
+  sprite.center.set(0.5, 0)
+  return sprite
+}
+
 // リサイズ対応
 function resize() {
   const target = controls.target.clone()
@@ -60,7 +109,7 @@ function resize() {
   camera.aspect = w / h
   camera.updateProjectionMatrix()
 
-  const fitMargin = w < 768 ? 1.8 : 1.4
+  const fitMargin = w < 768 ? 3.2 : 2.4
   const vFov = THREE.MathUtils.degToRad(camera.fov)
   const halfHeightTan = Math.tan(vFov / 2)
   const halfWidthTan = halfHeightTan * camera.aspect
@@ -122,6 +171,7 @@ check(
     geometry.parameters.tubularSegments === params.tubularSegments
 )
 check('OrbitControls available', () => typeof controls.update === 'function')
+check('Info label sprite added', () => scene.children.includes(infoLabel))
 
 // 表示
 const passCount = results.filter((r) => r.ok).length
