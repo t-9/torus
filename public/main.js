@@ -27,11 +27,14 @@ const material = new THREE.MeshStandardMaterial({
 })
 const torus = new THREE.Mesh(geometry, material)
 scene.add(torus)
+geometry.computeBoundingSphere()
+const objectRadius = geometry.boundingSphere ? geometry.boundingSphere.radius : params.radius + params.tube
 
 // カメラ
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100)
 camera.position.set(2.8, 1.8, 3.2)
 scene.add(camera)
+const cameraDirection = camera.position.clone().normalize()
 
 // レンダラ
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -49,11 +52,27 @@ controls.enablePan = true
 
 // リサイズ対応
 function resize() {
-  const w = container.clientWidth
-  const h = container.clientHeight
+  const w = container.clientWidth || window.innerWidth || 1
+  const h = container.clientHeight || window.innerHeight || 1
   camera.aspect = w / h
   camera.updateProjectionMatrix()
+
+  const fitMargin = 1.3
+  const vFov = THREE.MathUtils.degToRad(camera.fov)
+  const halfHeightTan = Math.tan(vFov / 2)
+  const halfWidthTan = halfHeightTan * camera.aspect
+  const distVertical = (objectRadius * fitMargin) / halfHeightTan
+  const distHorizontal = (objectRadius * fitMargin) / Math.max(halfWidthTan, 0.0001)
+  const fitDistance = Math.max(distVertical, distHorizontal)
+
+  camera.position.copy(cameraDirection).multiplyScalar(fitDistance)
+  camera.updateProjectionMatrix()
+
+  controls.minDistance = fitDistance * 0.6
+  controls.maxDistance = fitDistance * 3
+
   renderer.setSize(w, h, false)
+  controls.update()
 }
 window.addEventListener('resize', resize)
 resize()
