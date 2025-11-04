@@ -4,28 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Interactive Torus - Three.js + OrbitControls</title>
-  <style>
-    html, body { height: 100%; margin: 0; }
-    body {
-      background: radial-gradient(50% 50% at 50% 50%, #0c1222 0%, #070b14 100%);
-      color: #fff; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-    }
-    #app { position: fixed; inset: 0; }
-    #help {
-      position: fixed; left: 12px; bottom: 12px; padding: 8px 10px; font-size: 12px; line-height: 1.4;
-      background: rgba(0,0,0,.45); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; backdrop-filter: blur(4px);
-      user-select: none;
-    }
-    .credit { position: fixed; right: 12px; bottom: 12px; font-size: 11px; opacity: .7 }
-    #tests {
-      position: fixed; right: 12px; top: 12px; font-size: 12px; line-height: 1.3;
-      background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.12); border-radius: 10px; padding: 8px 10px;
-      max-width: 42ch;
-    }
-    #tests summary { cursor: pointer; }
-    .pass { color: #b9f6ca; }
-    .fail { color: #ff8a80; }
-  </style>
+  <link rel="stylesheet" href="./styles.css" />
   <!-- Import Map: sandbox 環境での "three" バレル指定をCDNへリマップ -->
   <script type="importmap">
     {
@@ -45,112 +24,6 @@
     <div id="test-log">Running...</div>
   </details>
 
-  <script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-    // ルート要素
-    const container = document.getElementById('app');
-
-    // シーン
-    const scene = new THREE.Scene();
-    scene.background = null; // CSSの背景グラデを活かす
-
-    // ライト
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-    scene.add(ambient);
-
-    const dir = new THREE.DirectionalLight(0xffffff, 1.0);
-    dir.position.set(3, 4, 5);
-    scene.add(dir);
-
-    // トーラス（ドーナツ）
-    const params = { radius: 1.2, tube: 0.45, radialSegments: 128, tubularSegments: 256 };
-    const geometry = new THREE.TorusGeometry(params.radius, params.tube, params.radialSegments, params.tubularSegments);
-    const material = new THREE.MeshStandardMaterial({
-      color: 0x4fb6ff,
-      roughness: 0.2,
-      metalness: 0.7,
-      envMapIntensity: 1.0
-    });
-    const torus = new THREE.Mesh(geometry, material);
-    scene.add(torus);
-
-    // カメラ
-    const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-    camera.position.set(2.8, 1.8, 3.2);
-    scene.add(camera);
-
-    // レンダラ
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
-
-    // マウス操作（OrbitControls）
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.minDistance = 1.5;
-    controls.maxDistance = 8;
-    controls.enablePan = true;
-
-    // リサイズ対応
-    function resize() {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h, false);
-    }
-    window.addEventListener('resize', resize);
-    resize();
-
-    // 無操作時のゆるやかな回転
-    let autoRotate = true;
-    document.addEventListener('pointerdown', () => (autoRotate = false), { passive: true });
-
-    function animate() {
-      requestAnimationFrame(animate);
-      if (autoRotate) {
-        torus.rotation.y += 0.003;
-        torus.rotation.x += 0.0015;
-      }
-      controls.update();
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    // --- Minimal Test Harness (手元診断用) ---
-    const logEl = document.getElementById('test-log');
-    const results = [];
-    function check(name, fn) {
-      try {
-        const ok = !!fn();
-        results.push({ name, ok });
-      } catch (e) {
-        results.push({ name, ok: false, err: e });
-      }
-    }
-
-    // テストケース
-    check('THREE loaded', () => typeof THREE.Scene === 'function');
-    check('Renderer attached to DOM', () => renderer.domElement.isConnected);
-    check('Torus geometry parameters', () => geometry.parameters &&
-      geometry.parameters.radius === params.radius &&
-      geometry.parameters.tube === params.tube &&
-      geometry.parameters.radialSegments === params.radialSegments &&
-      geometry.parameters.tubularSegments === params.tubularSegments);
-    check('OrbitControls available', () => typeof controls.update === 'function');
-
-    // 表示
-    const passCount = results.filter(r => r.ok).length;
-    const total = results.length;
-    logEl.innerHTML = `${passCount}/${total} tests passed` +
-      '<ul style="margin:6px 0 0 18px; padding:0">' + results.map(r =>
-        `<li class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'} - ${r.name}${r.err ? ' : ' + (r.err.message || r.err) : ''}</li>`
-      ).join('') + '</ul>';
-  </script>
+  <script type="module" src="./main.js"></script>
 </body>
 </html>
-
