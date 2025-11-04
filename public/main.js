@@ -26,7 +26,9 @@ const material = new THREE.MeshStandardMaterial({
   envMapIntensity: 1.0
 })
 const torus = new THREE.Mesh(geometry, material)
-scene.add(torus)
+const torusGroup = new THREE.Group()
+torusGroup.add(torus)
+scene.add(torusGroup)
 geometry.computeBoundingSphere()
 const objectRadius = geometry.boundingSphere ? geometry.boundingSphere.radius : params.radius + params.tube
 
@@ -39,11 +41,10 @@ if (currentLabelHeight > 0) {
   const adjust = desiredLabelHeight / currentLabelHeight
   infoLabel.scale.multiplyScalar(adjust)
 }
-scene.add(infoLabel)
+torusGroup.add(infoLabel)
 
 // カメラ
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100)
-camera.position.set(2.8, 1.8, 3.2)
 scene.add(camera)
 
 // レンダラ
@@ -59,6 +60,7 @@ controls.dampingFactor = 0.06
 controls.minDistance = 1.5
 controls.maxDistance = 8
 controls.enablePan = true
+controls.target.set(0, 0, 0)
 
 function createLabel(lines) {
   const canvas = document.createElement('canvas')
@@ -100,16 +102,16 @@ function createLabel(lines) {
 
 // リサイズ対応
 function resize() {
-  const target = controls.target.clone()
-  const cameraOffset = camera.position.clone().sub(target)
-  const direction = cameraOffset.lengthSq() > 0 ? cameraOffset.normalize() : new THREE.Vector3(1, 0.6, 1).normalize()
-
   const w = container.clientWidth || window.innerWidth || 1
   const h = container.clientHeight || window.innerHeight || 1
   camera.aspect = w / h
   camera.updateProjectionMatrix()
 
-  const fitMargin = w < 768 ? 3.2 : 2.4
+  const isMobile = w < 768
+  const horizontalShift = -(isMobile ? objectRadius * 2.4 : objectRadius * 1.6)
+  torusGroup.position.set(horizontalShift, 0, 0)
+
+  const fitMargin = isMobile ? 3.2 : 2.4
   const vFov = THREE.MathUtils.degToRad(camera.fov)
   const halfHeightTan = Math.tan(vFov / 2)
   const halfWidthTan = halfHeightTan * camera.aspect
@@ -117,13 +119,15 @@ function resize() {
   const distHorizontal = (objectRadius * fitMargin) / Math.max(halfWidthTan, 0.0001)
   const fitDistance = Math.max(distVertical, distHorizontal)
 
-  camera.position.copy(direction.multiplyScalar(fitDistance).add(target))
-  camera.lookAt(target)
+  const focusPoint = new THREE.Vector3(0, 0, 0)
+  const cameraDirection = new THREE.Vector3(0, 0.45, 1).normalize()
+  camera.position.copy(cameraDirection.multiplyScalar(fitDistance).add(focusPoint))
+  camera.lookAt(focusPoint)
   camera.updateProjectionMatrix()
 
   controls.minDistance = fitDistance * 0.6
   controls.maxDistance = fitDistance * 3
-  controls.target.copy(target)
+  controls.target.copy(focusPoint)
 
   renderer.setSize(w, h, false)
   controls.update()
@@ -171,7 +175,7 @@ check(
     geometry.parameters.tubularSegments === params.tubularSegments
 )
 check('OrbitControls available', () => typeof controls.update === 'function')
-check('Info label sprite added', () => scene.children.includes(infoLabel))
+check('Info label sprite added', () => infoLabel.parent === torusGroup)
 
 // 表示
 const passCount = results.filter((r) => r.ok).length
