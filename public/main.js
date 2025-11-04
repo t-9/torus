@@ -108,10 +108,11 @@ function resize() {
   camera.updateProjectionMatrix()
 
   const isMobile = w < 768
-  const horizontalShift = -(isMobile ? objectRadius * 2.4 : objectRadius * 1.6)
-  torusGroup.position.set(horizontalShift, 0, 0)
+  const horizontalShift = -(isMobile ? objectRadius * 1.9 : objectRadius * 1.25)
+  const verticalShift = objectRadius * (isMobile ? 1.05 : 0.8)
+  torusGroup.position.set(horizontalShift, verticalShift, 0)
 
-  const fitMargin = isMobile ? 3.2 : 2.4
+  const fitMargin = isMobile ? 3.9 : 3.0
   const vFov = THREE.MathUtils.degToRad(camera.fov)
   const halfHeightTan = Math.tan(vFov / 2)
   const halfWidthTan = halfHeightTan * camera.aspect
@@ -120,7 +121,7 @@ function resize() {
   const fitDistance = Math.max(distVertical, distHorizontal)
 
   const focusPoint = new THREE.Vector3(0, 0, 0)
-  const cameraDirection = new THREE.Vector3(0, 0.45, 1).normalize()
+  const cameraDirection = new THREE.Vector3(isMobile ? 0 : 0.05, isMobile ? 0.35 : 0.4, 1).normalize()
   camera.position.copy(cameraDirection.multiplyScalar(fitDistance).add(focusPoint))
   camera.lookAt(focusPoint)
   camera.updateProjectionMatrix()
@@ -149,46 +150,3 @@ function animate() {
   renderer.render(scene, camera)
 }
 animate()
-
-// --- Minimal Test Harness (手元診断用) ---
-const logEl = document.getElementById('test-log')
-const results = []
-function check(name, fn) {
-  try {
-    const ok = !!fn()
-    results.push({ name, ok })
-  } catch (e) {
-    results.push({ name, ok: false, err: e })
-  }
-}
-
-// テストケース
-check('THREE loaded', () => typeof THREE.Scene === 'function')
-check('Renderer attached to DOM', () => renderer.domElement.isConnected)
-check(
-  'Torus geometry parameters',
-  () =>
-    geometry.parameters &&
-    geometry.parameters.radius === params.radius &&
-    geometry.parameters.tube === params.tube &&
-    geometry.parameters.radialSegments === params.radialSegments &&
-    geometry.parameters.tubularSegments === params.tubularSegments
-)
-check('OrbitControls available', () => typeof controls.update === 'function')
-check('Info label sprite added', () => infoLabel.parent === torusGroup)
-
-// 表示
-const passCount = results.filter((r) => r.ok).length
-const total = results.length
-logEl.innerHTML =
-  `${passCount}/${total} tests passed` +
-  '<ul style="margin:6px 0 0 18px; padding:0">' +
-  results
-    .map(
-      (r) =>
-        `<li class="${r.ok ? 'pass' : 'fail'}">${r.ok ? 'PASS' : 'FAIL'} - ${r.name}${
-          r.err ? ' : ' + (r.err.message || r.err) : ''
-        }</li>`
-    )
-    .join('') +
-  '</ul>'
