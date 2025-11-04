@@ -34,7 +34,6 @@ const objectRadius = geometry.boundingSphere ? geometry.boundingSphere.radius : 
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100)
 camera.position.set(2.8, 1.8, 3.2)
 scene.add(camera)
-const cameraDirection = camera.position.clone().normalize()
 
 // レンダラ
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -52,12 +51,16 @@ controls.enablePan = true
 
 // リサイズ対応
 function resize() {
+  const target = controls.target.clone()
+  const cameraOffset = camera.position.clone().sub(target)
+  const direction = cameraOffset.lengthSq() > 0 ? cameraOffset.normalize() : new THREE.Vector3(1, 0.6, 1).normalize()
+
   const w = container.clientWidth || window.innerWidth || 1
   const h = container.clientHeight || window.innerHeight || 1
   camera.aspect = w / h
   camera.updateProjectionMatrix()
 
-  const fitMargin = 1.3
+  const fitMargin = w < 768 ? 1.8 : 1.4
   const vFov = THREE.MathUtils.degToRad(camera.fov)
   const halfHeightTan = Math.tan(vFov / 2)
   const halfWidthTan = halfHeightTan * camera.aspect
@@ -65,11 +68,13 @@ function resize() {
   const distHorizontal = (objectRadius * fitMargin) / Math.max(halfWidthTan, 0.0001)
   const fitDistance = Math.max(distVertical, distHorizontal)
 
-  camera.position.copy(cameraDirection).multiplyScalar(fitDistance)
+  camera.position.copy(direction.multiplyScalar(fitDistance).add(target))
+  camera.lookAt(target)
   camera.updateProjectionMatrix()
 
   controls.minDistance = fitDistance * 0.6
   controls.maxDistance = fitDistance * 3
+  controls.target.copy(target)
 
   renderer.setSize(w, h, false)
   controls.update()
